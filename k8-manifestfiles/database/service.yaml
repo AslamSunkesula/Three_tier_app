@@ -1,0 +1,17 @@
+apiVersion : apps/v1
+kind: service
+metadata : 
+  name : mongodb-svc
+  namespace : three-tire 
+spec : 
+  selector : 
+    app : mongodb
+  ports: 
+  - port : 27017
+    protocal : TCP
+    targetPort: 27017
+    name: mongodb-svc
+
+
+
+
