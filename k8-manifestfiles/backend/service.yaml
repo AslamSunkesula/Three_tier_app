@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind : service 
+metadata: 
+   name: api
+   namespace: three-tier
+spec:
+  ports:
+  - port: 3500
+    protocal: TCP
+  type: ClusterIP
+  selector: 
+    role: api
+
+

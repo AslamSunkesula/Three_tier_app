@@ -1,0 +1,52 @@
+apiVersion : apps/v1
+kind: Deployment 
+metadata:
+  name: api 
+  namespace: threetier
+  labels:
+    role: api 
+    env : dem
+spec:
+  replicas: 2
+  strategy:
+    type : RollingUpdate
+    rollingupdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      role: api 
+  template:
+    containers :
+      - name : api
+        image: 025066245469.dkr.ecr.us-east-1.amazonaws.com/three_tire_backend
+        imagePullPolicy: Always
+        env:
+          - name : MONGO_CONN_STR
+            value: 
+          - name: MONGO_USERNAME
+            valueFrom:
+              secretkeyRef:
+                name: mongo-sec
+                key: username
+          - name: vMONGO_PASSWORD
+            valueFrom:
+              secretkeyRef:
+                name: mongo-sec
+                key: password
+        ports:
+        - containerPort: 3500
+        livenessProbe:
+          httpGet:
+            path: /ok
+            port: 3500
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ok
+            port: 3500
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+        
