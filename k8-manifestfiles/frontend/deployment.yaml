@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: deployment
+kind: Deployment
 metadata:
    name: frontend
    namespace: three-tier
@@ -7,7 +7,12 @@ metadata:
      role: frontend 
      env: demo
 spec:
-  relicas: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
   selector:
     matchLabels:
       role: frontend
@@ -16,11 +21,16 @@ spec:
       labels:
         role: frontend 
     spec:
+      imagePullSecrets:
+      - name: ecr-registry-secret
       containers:
         - name: frontend 
           image:  025066245469.dkr.ecr.us-east-1.amazonaws.com/three-tier-frontend
-          imagePullPolicy: Always 
-          Ports:
-            - containerport: 3000
-
+          imagePullPolicy: Always
+          env:
+            - name: REACT_APP_BACKEND_URL
+              value: "http://backend.cloudaslam.online.study/api/tasks"
+          ports:
+          - containerPort: 3000
+   
 
