@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  labels:
+    name: mongodb
+    namespace: three-tire 
+spec:
+  replicas: 1
+  selector: 
+    matchLabels:
+      name: mongodb
+template: 
+  metadata: 
+    labels:
+      name : mongodb
+spec:
+  containers:
+  - name: mon
+    image: mongo:4.4.6
+    command:
+        - "numactl"
+        - "--interleave=all"
+        - "mongod"
+        - "--wiredTigerCacheSizeGB"
+        - "0.1"
+        - "--bind_ip"
+        - "0.0.0.0"
+    ports:
+    - containersPort:27017
+  volumeMounts:
+  - name: mongo-volume 
+    mounthPath: /data/db
+
+volumes:
+  - name: mongo-volume
+    persistantVolumeClaim: 
+      claimName: mongo-volume-claim 
+
