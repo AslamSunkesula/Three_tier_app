@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: deployment
+metadata:
+   name: frontend
+   namespace: three-tier
+   labels:
+     role: frontend 
+     env: demo
+spec:
+  relicas: 1
+  selector:
+    matchLabels:
+      role: frontend
+  template:
+    metadata:
+      labels:
+        role: frontend 
+    spec:
+      containers:
+        - name: frontend 
+          image:  025066245469.dkr.ecr.us-east-1.amazonaws.com/three-tier-frontend
+          imagePullPolicy: Always 
+          Ports:
+            - containerport: 3000
+
+
