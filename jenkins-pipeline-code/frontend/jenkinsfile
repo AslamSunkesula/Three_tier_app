@@ -1,0 +1,113 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk'
+        nodejs 'nodejs'
+    }   
+    environment {
+        // Add environment variables here if needed
+        SONAR_HOME = 'sonar-scanner'
+        REPOSITORY_URI = 
+        AWS_DEFAULT_REGION = 
+        AWS_ECR_REPO_NAME =
+    }
+
+    stages {
+        stage('Cleaning Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Git checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/AslamSunkesula/Three_tier_app.git'
+            }
+        }
+
+        stage('Sonarqube Analysis') {
+            steps {
+                dir('Application-Code/frontend')
+                withSonarQubeEnv('sonar-server'){
+                    sh '''
+                      ${SONAR_HOME}/bin/sonar-scanner 
+                        -Dsonar.projectKey=Three-tier-frontend 
+                        -Dsonar.projectName=Three_tier-backend
+                      '''
+                }
+
+                 
+            }
+        }
+        stage('Quality Gate check'){
+            steps {
+                script { {
+                        waitForQualityGate abortPipeline: false , credentialsId: 'sonar-token'
+                    }
+                }
+            }
+
+        }
+        stage ('OWASP Dependency Check') {
+            steps {
+                dir ('Application-Code/frontend') {
+                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DC'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage ('Trivy Scan') {
+            steps{
+                dir ('Application-Code/frontend') {
+                    sh ' trivy fs . > trivy-report.txt'
+                }
+            }
+        }
+        stage ('Docker Image Build'){
+            dir ('Application-Code/frontend') {
+                sh '''
+                docker system prune -f
+                docker container prune -f
+                docker build it ${AWS_ECR_REPO_NAME}
+                '''
+            }
+        }
+        stage ('ECR Image Pushing') {
+            steps {
+                sh 'aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${REPOSITORY_URI}'
+                sh 'docker tag ${AWS_ECR_REPO_NAME} ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
+                sh 'docker push ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
+            }
+        }
+        stage ('Trivy Image Scan'){
+            steps {
+                sh 'trivy image  ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER} > trivyimage.txt'
+            }
+        }
+         stage('Git checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/AslamSunkesula/Three_tier_app.git'
+            }
+        }
+        stage("update Deployment file"){
+            dir('k8-manifestfiles/frontend'){
+            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+           sh '''
+            git config user.name "AslamSunkesula"
+            git config user.email "aslam.sunkesula@gmail.com"
+            BUILD_NUMBER=${BUILD_NUMBER}
+            echo $BUILD_NUMBER
+            imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
+            echo $imageTag
+            sed -i "s/${AWS_ECR_REPO_NAME}:${imageTag}/${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}/" deployment.yaml
+            git add deployment.yaml
+            git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
+            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
+            '''                 
+
+            }
+
+        }
+
+
+}
